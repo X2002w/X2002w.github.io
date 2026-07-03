@@ -63,3 +63,5 @@ add wave -group regfile tb_top.u_regfile.regfile\[7:0\]
 ## 总结
 
 GTKWave 加载 TCL 时使用正则匹配信号名，含有方括号的信号需要转义处理。养成良好的习惯：**在编写 GTKWave TCL 脚本时，始终对信号名中的方括号进行转义**，可以避免因部分信号未加载而重复调试的麻烦。
+
+xxxxxxx
