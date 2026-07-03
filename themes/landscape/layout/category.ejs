@@ -1,0 +1,20 @@
+<div class="container">
+  <h1 class="post-title" style="margin-bottom: 24px;"><%= page.category %></h1>
+  <% page.posts.each(function(post){ %>
+    <div class="article-card">
+      <h2 class="card-title"><a href="<%- url_for(post.path) %>"><%= post.title %></a></h2>
+      <div class="card-meta">
+        <span><%= date(post.date, 'YYYY-MM-DD') %></span>
+        <% if (post.categories && post.categories.length) { %>
+          <% post.categories.each(function(cat){ %><a href="<%- url_for(cat.path) %>"><%= cat.name %></a><% }) %>
+        <% } %>
+      </div>
+      <% if (post.excerpt) { %><div class="card-excerpt"><%- post.excerpt %></div><% } %>
+    </div>
+  <% }) %>
+  <% if (page.total > 1) { %>
+  <nav class="page-nav">
+    <%- paginator({ prev_text: '&laquo; 上一页', next_text: '下一页 &raquo;', escape: false }) %>
+  </nav>
+  <% } %>
+</div>

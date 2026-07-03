@@ -1,0 +1,157 @@
+<style>
+  .section {
+    max-width: 720px; margin: 0 auto; padding: 32px 24px 60px;
+  }
+  .section-title {
+    font-size: 1.3rem; font-weight: 700; margin-bottom: 20px;
+    padding-bottom: 8px; border-bottom: 2px solid var(--accent);
+    display: inline-block;
+  }
+  .post-list { list-style: none; }
+  .post-list li {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  }
+  .post-list li:last-child { border-bottom: none; }
+  .post-list .post-title { font-weight: 500; font-size: 1rem; }
+  .post-list .post-date { color: var(--text-muted); font-size: 0.85rem; white-space: nowrap; }
+
+  @media (max-width: 640px) {
+    .post-list li { flex-direction: column; gap: 2px; }
+  }
+</style>
+
+<% if (site.posts.length) { %>
+<section class="section">
+  <h2 class="section-title">最近文章</h2>
+  <ul class="post-list">
+    <% site.posts.sort('date', -1).limit(5).each(function(post){ %>
+      <li>
+        <a class="post-title" href="<%- url_for(post.path) %>"><%= post.title %></a>
+        <span class="post-date"><%= date(post.date, 'YYYY-MM-DD') %></span>
+      </li>
+    <% }) %>
+  </ul>
+</section>
+<% } %>
+
+<% if (site.tags.length) { %>
+<section class="section">
+  <h2 class="section-title">标签</h2>
+  <div class="tag-cloud-page">
+    <% site.tags.sort('length', -1).limit(15).each(function(tag){ %>
+      <a href="<%- url_for(tag.path) %>"><%= tag.name %></a>
+    <% }) %>
+  </div>
+</section>
+<% } %>
+
+<%
+  var postData = {};
+  site.posts.each(function(post){
+    var d = post.date.format('YYYY-MM-DD');
+    postData[d] = (postData[d] || 0) + 1;
+  });
+%>
+
+<section class="section">
+  <div class="section-header">
+    <h2 class="section-title" id="heatmap-title"></h2>
+  </div>
+  <div id="heatmap"></div>
+  <div class="heatmap-legend">
+    <span>Less</span>
+    <div class="heatmap-cell l0"></div>
+    <div class="heatmap-cell l1"></div>
+    <div class="heatmap-cell l2"></div>
+    <div class="heatmap-cell l3"></div>
+    <span>More</span>
+  </div>
+</section>
+
+<script>
+(function(){
+  var postMap = <%- JSON.stringify(postData) %>;
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var dayLabels = ['','Mon','','Wed','','Fri',''];
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  var endMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  var startMonth = new Date(endMonth);
+  startMonth.setMonth(startMonth.getMonth() - 11);
+
+  var monthLabels = [];
+  var m = new Date(startMonth);
+  while (m <= endMonth) {
+    monthLabels.push(months[m.getMonth()]);
+    m.setMonth(m.getMonth() + 1);
+  }
+
+  var gridStart = new Date(startMonth);
+  gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+  var totalWeeks = Math.ceil((today - gridStart) / (1000 * 60 * 60 * 24 * 7));
+
+  var monthStarts = [];
+  for (var i = 0; i < 12; i++) {
+    var firstDay = new Date(startMonth);
+    firstDay.setMonth(firstDay.getMonth() + i);
+    var col = Math.floor((firstDay - gridStart) / (1000 * 60 * 60 * 24 * 7));
+    if (col >= 0 && col < totalWeeks) {
+      monthStarts.push({ label: monthLabels[i], col: col });
+    }
+  }
+
+  var windowPosts = 0;
+  Object.keys(postMap).forEach(function(d){
+    var parts = d.split('-');
+    var dm = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+    if (dm >= startMonth && dm <= endMonth) windowPosts += postMap[d];
+  });
+
+  document.getElementById('heatmap-title').textContent = windowPosts + ' posts in the past 12 months';
+
+  var cellSize = 12, gap = 3;
+  var html = '<div class="heatmap-outer">';
+
+  // Fixed day label column
+  html += '<div class="heatmap-days">';
+  html += '<div class="heatmap-days-spacer"></div>';
+  for (var row = 0; row < 7; row++) {
+    html += '<span class="heatmap-day-label">' + dayLabels[row] + '</span>';
+  }
+  html += '</div>';
+
+  // Scrollable heatmap area
+  html += '<div class="heatmap-wrapper">';
+  html += '<div class="heatmap-months">';
+  monthStarts.forEach(function(ms){
+    html += '<span class="heatmap-month-label" style="left:' + (ms.col * (cellSize + gap)) + 'px">' + ms.label + '</span>';
+  });
+  html += '</div>';
+  html += '<div class="heatmap-grid">';
+  for (var row = 0; row < 7; row++) {
+    html += '<div class="heatmap-row">';
+    for (var col = 0; col < totalWeeks; col++) {
+      var d = new Date(gridStart);
+      d.setDate(d.getDate() + col * 7 + row);
+      var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      var count = postMap[key] || 0;
+      var level = count === 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : 3;
+      if (d > today) {
+        html += '<div class="heatmap-cell l0 future"></div>';
+      } else {
+        html += '<div class="heatmap-cell l' + level + '" title="' + key + ': ' + count + ' posts"></div>';
+      }
+    }
+    html += '</div>';
+  }
+  html += '</div></div></div>';
+  document.getElementById('heatmap').innerHTML = html;
+
+  // Auto-scroll to right (today)
+  var wrapper = document.querySelector('#heatmap .heatmap-wrapper');
+  if (wrapper) wrapper.scrollLeft = wrapper.scrollWidth;
+})();
+</script>

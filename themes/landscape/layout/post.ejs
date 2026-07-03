@@ -1,0 +1,52 @@
+<div class="container">
+  <article>
+    <header class="post-header">
+      <h1 class="post-title"><%= page.title %></h1>
+      <div class="post-meta">
+        <span><%= date(page.date, 'YYYY-MM-DD') %></span>
+        <% if (page.categories && page.categories.length) { %>
+          <span>|</span>
+          <% page.categories.each(function(cat){ %>
+            <a href="<%- url_for(cat.path) %>"><%= cat.name %></a>
+          <% }) %>
+        <% } %>
+      </div>
+    </header>
+
+    <div class="post-body"><%- page.content %></div>
+
+    <% if (page.tags && page.tags.length) { %>
+    <footer class="post-footer">
+      <div class="post-tags">
+        <span class="tag-label">标签：</span>
+        <% page.tags.each(function(tag){ %>
+          <a href="<%- url_for(tag.path) %>" class="tag-item">#<%= tag.name %></a>
+        <% }) %>
+      </div>
+    </footer>
+    <% } %>
+  </article>
+
+  <% if (page.prev || page.next) { %>
+  <nav class="post-nav">
+    <% if (page.prev) { %><a href="<%- url_for(page.prev.path) %>">&laquo; <%= page.prev.title %></a><% } else { %><span></span><% } %>
+    <% if (page.next) { %><a href="<%- url_for(page.next.path) %>"><%= page.next.title %> &raquo;</a><% } else { %><span></span><% } %>
+  </nav>
+  <% } %>
+
+  <% if (page.comments){ %>
+  <section id="comments" class="post-comments">
+    <% if (theme.disqus_shortname){ %>
+    <div id="disqus_thread">
+      <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    </div>
+    <% } %>
+    <% if (theme.valine.enable && theme.valine.appId && theme.valine.appKey){ %>
+    <div class="vcomment"></div>
+    <% } %>
+    <% if (theme.waline.enable && theme.waline.serverURL){ %>
+    <div id="waline"></div>
+    <% } %>
+  </section>
+  <% } %>
+</div>

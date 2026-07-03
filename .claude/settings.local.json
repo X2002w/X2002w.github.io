@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx hexo:*)",
+      "Bash(mkdir -p themes)",
+      "Bash(cp -r node_modules/hexo-theme-landscape themes/landscape)",
+      "Bash(hexo clean:*)",
+      "Bash(hexo g:*)",
+      "Bash(ls public/tags/)",
+      "Bash(ls public/tags/index.html)",
+      "Bash(ls -la source/)",
+      "Bash(ls source/tags/)"
+    ]
+  }
+}
