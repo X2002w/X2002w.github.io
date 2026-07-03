@@ -1,5 +1,7 @@
+# 工作流名称： github actions 页面显示名称“deploy hexo to GitHub Pages”
 name: Deploy Hexo to GitHub Pages
 
+# 触发条件： push 到source时 or actions 页面手动触发
 on:
   push:
     branches: [source]        # 源码分支：推送到此分支即触发部署
@@ -7,49 +9,62 @@ on:
 
 # 允许 Actions 发布到 GitHub Pages
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: read        # 允许工作流读取仓库内容
+  pages: write          # 允许工作流写入GitHub Pages部署
+  id-token: write       # 允许生成OIDC令牌，用于身份验证
 
 # 同一时间只允许一次部署，避免并发冲突
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages          # 将同一组（pages）的任务排队进行
+  cancel-in-progress: false # 新的任务触发时，等待旧任务完成
 
+# 工作流程
 jobs:
+    # build 构建博客
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest      # 在最新的ubuntu-latest虚拟机上运行
+    # 构建任务 步骤
     steps:
+        # checkout 动作拉取 source 分支源码
       - name: Checkout source
         uses: actions/checkout@v4
         with:
           ref: source          # 始终从 source 分支构建
 
+        # 安装 Node.js 20 并且启用npm依赖缓存加快后续构建速度
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'         # 自动缓存 npm 依赖，加速构建
 
+        # 运行 npm ci 工具package-lock.json 安装确切版本的依赖（优于npm install）
       - name: Install dependencies
         run: npm ci
 
+        # 调用 Github Pages 配置动作， 用于获取部署所需的元信息
       - name: Configure Pages
         id: pages
         uses: actions/configure-pages@v5
 
+        # hexo 构建
       - name: Build with Hexo
         run: |
           npx hexo clean
           npx hexo generate
 
+        # 上传 ./public目录（静态网站文件）
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./public
 
+  # deploy 部署
   deploy:
+    # 依赖于build任务，只有build任务完成后，才执行部署
     needs: build
+    
+    # 环境绑定到 github-pages环境， 并将部署后的url 输出到工作流界面
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

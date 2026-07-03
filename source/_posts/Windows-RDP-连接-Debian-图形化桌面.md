@@ -93,20 +93,32 @@ chmod +x ~/.xsession
 
 ### 2.2 修复 startwm.sh 防止黑屏/闪退
 
-编辑 `/etc/xrdp/startwm.sh`，在 `exit 0` 之前插入启动 XFCE 的命令：
+xrdp 连接后启动桌面环境的逻辑由 `/etc/xrdp/startwm.sh` 控制。常见黑屏的一个原因是该脚本中残留的 `DBUS_SESSION_BUS_ADDRESS` / `XDG_RUNTIME_DIR` 等环境变量指向了本地会话的资源，导致新起的 X 会话拿不到正确的总线地址。
+
+先备份，再在脚本**开头**（环境变量区）插入清理命令。注意：不要假设脚本末尾有 `exit 0` 行——不同版本包带的 `startwm.sh` 结尾并不一致，用 `sed` 匹配 `^exit 0$` 在很多版本上会**静默不插入**，导致修复形同虚设。改用"在开头插入"更稳妥：
 
 ```bash
 # 先备份
 sudo cp /etc/xrdp/startwm.sh /etc/xrdp/startwm.sh.bak
 
-# 在 exit 0 前插入以下内容
-sudo sed -i '/^exit 0$/i\
-# Start XFCE4 session for xrdp\
+# 在脚本开头（第一行 shebang 之后）插入环境清理
+sudo sed -i '1a\
+\
+# Clean up leftover session env to avoid xrdp black screen\
 unset DBUS_SESSION_BUS_ADDRESS\
-unset XDG_RUNTIME_DIR\
-test -x /usr/bin/startxfce4 && exec /usr/bin/startxfce4\
-' /etc/xrdp/startwm.sh
+unset XDG_RUNTIME_DIR' /etc/xrdp/startwm.sh
+
+# 确认桌面启动逻辑存在：脚本应能在末尾调用到 startxfce4
+tail -n 15 /etc/xrdp/startwm.sh
 ```
+
+> 如果 `tail` 输出里**没有**调用 `startxfce4`（或 `dbus-launch`/`sesman` 之后没有启动窗口管理器），可在脚本末尾追加一行 `exec startxfce4`：
+>
+> ```bash
+> echo 'exec startxfce4' | sudo tee -a /etc/xrdp/startwm.sh
+> ```
+>
+> 一般情况下，配合 2.1 节的 `~/.xsession`，xrdp 会自动调用 `startxfce4`，无需手动追加。
 
 ### 2.3 创建专用于远程桌面的用户（解决登录即闪退）
 
@@ -154,18 +166,36 @@ sudo ss -tlnp | grep 3389
 
 ### 2.6 配置剪贴板共享
 
-`autocutsel` 已在第一步安装，现在添加自启动配置：
+`autocutsel` 已在第一步安装。X11 下有两个互相独立的选区：**CLIPBOARD**（Ctrl+C / Ctrl+V 使用的剪贴板）和 **PRIMARY**（鼠标选中即复制、中键粘贴）。要实现 Windows 与 Debian 之间的**双向、完整**剪贴板同步，需要分别启动两个 `autocutsel` 实例各管一个选区，并且都加上 `-fork` 让其在后台运行。
+
+为需要 RDP 登录的用户创建自启动配置（以第二步 2.3 创建的 `rdpuser` 为例；若你用其他账户登录，请替换家目录路径）：
 
 ```bash
+# 切换到目标用户执行，确保文件属主正确
+sudo -u rdpuser bash -c '
 mkdir -p ~/.config/autostart
-cat > ~/.config/autostart/autocutsel.desktop << 'EOF'
+cat > ~/.config/autostart/autocutsel-clipboard.desktop << "EOF"
 [Desktop Entry]
 Type=Application
-Name=autocutsel
+Name=autocutsel (CLIPBOARD)
 Exec=autocutsel -fork
 X-GNOME-Autostart-enabled=true
 EOF
+cat > ~/.config/autostart/autocutsel-primary.desktop << "EOF"
+[Desktop Entry]
+Type=Application
+Name=autocutsel (PRIMARY)
+Exec=autocutsel -selection PRIMARY -fork
+X-GNOME-Autostart-enabled=true
+EOF
+'
 ```
+
+> **说明**：
+> - 第一个实例不加 `-selection` 参数，默认管理 **CLIPBOARD** 选区；
+> - 第二个实例加 `-selection PRIMARY`，管理 **PRIMARY** 选区；
+> - 只启动一个的话，常出现"在 Windows 复制、Debian 里能中键粘贴但 Ctrl+V 粘贴不出来"的半同步现象，原因是另一个选区没人管。
+> - XFCE 会在登录时自动执行 `~/.config/autostart/` 下的 `.desktop` 文件，无需手动 `systemctl`。
 
 ## 第三步：从 Windows 连接
 
@@ -220,7 +250,7 @@ sudo tail -f /var/log/xrdp-sesman.log
 **常见原因有三：**
 
 1. **显示管理器不兼容**：Debian 默认的 gdm3 与 xrdp 配合容易黑屏。换成 lightdm 即可解决（第一步已安装并启用）。
-2. **`startwm.sh` 中桌面启动命令未正确执行**：按第二步 2.2 中的方法修改 `/etc/xrdp/startwm.sh`，确保在 `exit 0` 之前调用了 `startxfce4`。
+2. **`startwm.sh` 中环境变量未清理**：按第二步 2.2 中的方法修改 `/etc/xrdp/startwm.sh`，在脚本开头 `unset` 掉 `DBUS_SESSION_BUS_ADDRESS` 和 `XDG_RUNTIME_DIR`，并确认脚本能调用到 `startxfce4`。
 3. **用户未配置 `~/.xsession`**：确认对应用户已执行 `echo "startxfce4" > ~/.xsession`。
 
 ### Q3: 多用户同时连接
@@ -243,7 +273,7 @@ xrdp 原生支持多用户并发，每个用户登录后会拥有独立的桌面
 这套方案的核心优势在于 **RDP 是 Windows 原生协议**——无需在客户端安装任何第三方软件，开箱即用，安全省心。其余优势包括：
 
 - **性能优异**：RDP 协议对带宽要求低，操作流畅
-- **多用户支持**：多人可同时连接，同一用户也可多终端登录，互不干扰
+- **多用户支持**：xrdp 原生支持多用户并发，每位用户登录后拥有独立桌面会话，互不影响。注意同一用户不能同时拥有多个图形化会话（参见 Q3），需多终端并发登录的场景请为每个终端创建独立账户
 - **稳定可靠**：xrdp + lightdm + XFCE 组合经过大量生产环境验证，兼容性最佳
 
 如果你在使用过程中遇到问题，欢迎在评论区留言交流。
