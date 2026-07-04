@@ -159,6 +159,11 @@
       text-align: right; padding-right: 4px;
     }
     .heatmap-wrapper { position: relative; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+    .heatmap-wrapper::-webkit-scrollbar { height: 8px; }
+    .heatmap-wrapper::-webkit-scrollbar-track { background: transparent; }
+    .heatmap-wrapper::-webkit-scrollbar-thumb { background: #d4b483; border-radius: 4px; }
+    .heatmap-wrapper::-webkit-scrollbar-thumb:hover { background: #b07d3a; }
+    .heatmap-wrapper { scrollbar-width: thin; scrollbar-color: #d4b483 transparent; }
     .heatmap-months {
       position: relative; height: 18px;
       margin-bottom: 4px;
