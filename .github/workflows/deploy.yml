@@ -75,6 +75,6 @@ jobs:
         uses: Wandalen/wretry.action@master
         with:
             action: actions/deploy-pages@v4
-            attempt_limit: 2
-            attempt_delay: 3000
+            attempt_limit: 3
+            attempt_delay: 60000
             with: | 
