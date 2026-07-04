@@ -153,5 +153,16 @@
   // Auto-scroll to right (today)
   var wrapper = document.querySelector('#heatmap .heatmap-wrapper');
   if (wrapper) wrapper.scrollLeft = wrapper.scrollWidth;
+
+  // Wheel-to-horizontal scroll: vertical wheel scrolls the heatmap horizontally
+  if (wrapper) {
+    wrapper.addEventListener('wheel', function(e){
+      // Let native horizontal scroll (shift+wheel) work as-is
+      if (e.shiftKey || e.deltaX !== 0) return;
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      wrapper.scrollLeft += e.deltaY;
+    }, { passive: false });
+  }
 })();
 </script>
