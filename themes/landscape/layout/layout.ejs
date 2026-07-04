@@ -10,7 +10,8 @@
   <meta property="og:url" content="<%= config.url %>/<%= page.path %>">
   <meta property="og:site_name" content="<%= config.title %>">
   <title><% if (is_home()){ %><%= config.title %><% } else if (is_post()){ %><%= page.title %> - <%= config.title %><% } else if (is_archive()){ %>归档 - <%= config.title %><% } else if (is_category()){ %><%= page.category %> - <%= config.title %><% } else if (is_tag()){ %><%= page.tag %> - <%= config.title %><% } else { %><%= page.title %> - <%= config.title %><% } %></title>
-  <% if (theme.favicon) { %><link rel="shortcut icon" href="<%= theme.favicon %>"><% } %>
+  <link rel="icon" type="image/jpeg" href="<%- url_for('/images/avatar.jpg') %>">
+  <link rel="shortcut icon" href="<%- url_for('/images/avatar.jpg') %>">
   <% if (config.feed && config.feed.path) { %><link rel="alternate" href="<%- url_for(config.feed.path) %>" title="<%= config.title %>" type="application/atom+xml"><% } %>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
